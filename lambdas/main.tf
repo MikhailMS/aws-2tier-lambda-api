@@ -23,6 +23,10 @@ provider "aws" {
 }
 ####
 
+
+####
+## Configure AWS Lambda Functions
+###
 # Create dummy IAM policy for Lambda
 data "aws_iam_policy_document" "assume_role" {
   statement {
@@ -42,20 +46,36 @@ resource "aws_iam_role" "iam_for_lambda" {
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
-resource "aws_lambda_function" "test_lambda" {
-  function_name = var.lambda.function_name
+
+# Create AWS Lambda Functions
+resource "aws_lambda_function" "functions" {
+  for_each = {
+    for k, v in local.functions_array : "${v.terraform_name}" => v
+  }
+
+  function_name = each.value.function_name
   role          = aws_iam_role.iam_for_lambda.arn
 
-  architectures = var.lambda.architectures
-  description   = var.lambda.description
-  handler       = var.lambda.handler
-  runtime       = var.lambda.runtime
+  architectures = each.value.architectures
+  description   = each.value.description
+  handler       = each.value.handler
+  runtime       = each.value.runtime
 
-  s3_bucket = var.lambda.s3.bucket
-  s3_key    = var.lambda.s3.key
+  s3_bucket = each.value.s3.bucket
+  s3_key    = each.value.s3.key
 }
 
-resource "aws_lambda_function_url" "test_latest" {
-  function_name      = aws_lambda_function.test_lambda.function_name
+
+# Resolve AWS Lambda Functions URLs
+resource "aws_lambda_function_url" "function_url" {
+  for_each = {
+    for key, sub in aws_lambda_function.functions : key => sub
+    if length(regexall("^function*", key)) > 0
+  }
+
+  function_name      = each.value.function_name
   authorization_type = "NONE"
+
+  depends_on = [aws_lambda_function.functions]
 }
+#####
