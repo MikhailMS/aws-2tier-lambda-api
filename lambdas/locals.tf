@@ -1,15 +1,32 @@
 locals {
-  functions_array = flatten([for k, v in var.lambdas : [for j in v : {
-    function_name = j.function_name
+  functions_array   = var.lambdas["functions"]
+  custom_auth_array = var.lambdas["custom_auth"]
 
-    architectures = j.architectures
-    description   = j.description
-    handler       = j.handler
-    runtime       = j.runtime
+  # functions_array = flatten([for k, v in var.lambdas["functions"] : [for j in v : {
+  #   function_name = j.function_name
 
-    s3 = j.s3
+  #   architectures = j.architectures
+  #   description   = j.description
+  #   handler       = j.handler
+  #   runtime       = j.runtime
 
-    terraform_name = j.terraform_name
-    }
-  ]])
+  #   s3 = j.s3
+
+  #   terraform_name = j.terraform_name
+  #   }
+  # ]])
+
+  # custom_auth_array = flatten([for k, v in var.lambdas["custom_auth"] : [for j in v : {
+  #   function_name = j.function_name
+
+  #   architectures = j.architectures
+  #   description   = j.description
+  #   handler       = j.handler
+  #   runtime       = j.runtime
+
+  #   s3 = j.s3
+
+  #   terraform_name = j.terraform_name
+  #   }
+  # ]])
 }
