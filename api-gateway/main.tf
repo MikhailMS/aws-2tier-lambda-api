@@ -5,7 +5,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.0"
+      version = "~> 5.0"
     }
   }
 
@@ -38,13 +38,15 @@ resource "aws_apigatewayv2_api" "main_api_gateway" {
 
 # Create integrations - linkage between Gateway and Functions
 resource "aws_apigatewayv2_integration" "main_api_gateway_integration" {
-  for_each = {for function in local.lambdas_output.aws_lambda_functions: "${function.function_name}" => function.invoke_arn}
+  for_each = {
+    for function in local.lambdas_output.aws_lambda_functions: "${function.function_name}" => function.invoke_arn
+  }
   
   api_id           = aws_apigatewayv2_api.main_api_gateway.id
   integration_type = "AWS_PROXY"
 
   connection_type = "INTERNET"
-  description     = "Integration from Terraform"
+  description     = "Integration set by Terraform"
 
   integration_method = "POST"
   integration_uri    = each.value
@@ -53,19 +55,36 @@ resource "aws_apigatewayv2_integration" "main_api_gateway_integration" {
   payload_format_version = "2.0"
 }
 
-# Create routes - linkage between HTTP calls and what functions should be called
+# Link API Gateway to Custom Authorizer (Lambda Function)
+resource "aws_apigatewayv2_authorizer" "main_api_gateway_authorizer" {
+  for_each = {
+    for function in local.lambdas_output.aws_lambda_authorizers: "${function.function_name}" => function.invoke_arn
+  }
+
+  api_id                            = aws_apigatewayv2_api.main_api_gateway.id
+  authorizer_type                   = "REQUEST"
+  authorizer_uri                    = each.value
+  identity_sources                  = ["$request.header.Authorization"]
+  name                              = each.key
+  authorizer_payload_format_version = "1.0"
+}
+
+
+# Create routes - linkage between HTTP calls and what functions & authorizers should be called
 resource "aws_apigatewayv2_route" "main_api_gateway_route" {
-  # for_each = zipmap(local.lambdas_output.aws_lambda_function_names, [for invoke_arn in local.lambdas_output.aws_lambda_function_invoke_arns: aws_apigatewayv2_integration.main_api_gateway_integration[invoke_arn].id])
   for_each = {
     for function in local.lambdas_output.aws_lambda_functions: "${function.function_name}" => aws_apigatewayv2_integration.main_api_gateway_integration[function.function_name].id
   }
   
   api_id    = aws_apigatewayv2_api.main_api_gateway.id
-  # route_key = "ANY /medoviqTestFunction"
   route_key = "ANY /${each.key}"
+
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.main_api_gateway_authorizer[var.functions_auth[each.key].authorizer_function_name].id
 
   target = "integrations/${each.value}"
 }
+
 
 # Create permissions for Gateway to be able to invoke Lambda Functions
 resource "aws_lambda_permission" "api_gw" {
@@ -79,19 +98,7 @@ resource "aws_lambda_permission" "api_gw" {
   source_arn = "${aws_apigatewayv2_api.main_api_gateway.execution_arn}/*/*"
 }
 
-# Link API Gateway to Custom Authorizer (Lambda Function)
-resource "aws_apigatewayv2_authorizer" "main_api_gateway_authorizer" {
-  for_each = {for function in local.lambdas_output.aws_lambda_authorizers: "${function.function_name}" => function.invoke_arn}
-  
-  api_id                            = aws_apigatewayv2_api.main_api_gateway.id
-  authorizer_type                   = "REQUEST"
-  authorizer_uri                    = each.value
-  identity_sources                  = ["$request.header.Authorization"]
-  name                              = "custom-authorizer"
-  authorizer_payload_format_version = "2.0"
-}
-
-# Create permissions for Gateway to be able to invoke Lambda Functions
+# Create permissions for Gateway to be able to invoke Lambda Custom Authorizer Functions
 resource "aws_lambda_permission" "api_authorizer_gw" {
   for_each = toset([ for function in local.lambdas_output.aws_lambda_authorizers: function.function_name ])
   
@@ -102,6 +109,7 @@ resource "aws_lambda_permission" "api_authorizer_gw" {
 
   source_arn = "${aws_apigatewayv2_api.main_api_gateway.execution_arn}/*/*"
 }
+
 
 # Create development stage (not necessary for this exercise, but still good to know how)
 resource "aws_apigatewayv2_stage" "main_api_gateway_stage" {

@@ -12,7 +12,7 @@ variable "region" {
   type        = string
 }
 
-#=========== lambda data ==========
+#=========== lambda's data ========
 variable "ds_bucket" {
   description = "Lambda data source bucket"
   type        = string
@@ -26,7 +26,7 @@ variable "ds_region" {
   type        = string
 }
 
-#=========== lambda setting =======
+#=========== lambda's setting =====
 variable "api_gateway" {
   description = "AWS Lambda function settings"
   type        = object({
@@ -37,3 +37,13 @@ variable "api_gateway" {
   })
 }
 
+#=========== lambda's auth ========
+variable "functions_auth" {
+  description = "Map AWS Lambda Functions onto custom authorizers"
+
+  type = map(object(
+    {
+      authorizer_function_name = string,
+    })
+  )
+}
