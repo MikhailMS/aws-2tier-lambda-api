@@ -5,7 +5,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.0"
+      version = "~> 5.0"
     }
   }
 
@@ -27,6 +27,27 @@ provider "aws" {
 ####
 ## Configure AWS Lambda Functions
 ###
+# Fetch Lambda's checksum to be used in "functions" to ensure we can always deploy latest code
+data "aws_s3_object" "lambda_functions" {
+  for_each = {
+    for k, v in local.functions_array : "${v.function_name}" => v
+  }
+
+  bucket = each.value.s3.bucket
+  key    = each.value.s3.key
+}
+
+# Fetch Lambda's checksum to be used in "custom_auth" to ensure we can always deploy latest code
+data "aws_s3_object" "lambda_authorizers" {
+  for_each = {
+    for k, v in local.custom_auth_array : "${v.function_name}" => v
+  }
+
+  bucket = each.value.s3.bucket
+  key    = each.value.s3.key
+}
+
+
 # Create dummy IAM policy for Lambda
 data "aws_iam_policy_document" "assume_role" {
   statement {
@@ -63,6 +84,8 @@ resource "aws_lambda_function" "functions" {
 
   s3_bucket = each.value.s3.bucket
   s3_key    = each.value.s3.key
+
+  source_code_hash = data.aws_s3_object.lambda_functions[each.value.function_name].checksum_sha256
 }
 
 # Resolve AWS Lambda Functions URLs
@@ -95,6 +118,8 @@ resource "aws_lambda_function" "custom_auth" {
 
   s3_bucket = each.value.s3.bucket
   s3_key    = each.value.s3.key
+
+  source_code_hash = data.aws_s3_object.lambda_authorizers[each.value.function_name].checksum_sha256
 }
 
 # Resolve AWS Lambda custom auth Functions URLs
