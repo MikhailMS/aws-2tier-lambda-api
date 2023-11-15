@@ -64,7 +64,7 @@ resource "aws_apigatewayv2_authorizer" "main_api_gateway_authorizer" {
   api_id                            = aws_apigatewayv2_api.main_api_gateway.id
   authorizer_type                   = "REQUEST"
   authorizer_uri                    = each.value
-  identity_sources                  = ["$request.header.Authorization"]
+  identity_sources                  = ["$request.header.Authorization", "$request.header.CalledMethod"]
   name                              = each.key
   authorizer_payload_format_version = "1.0"
 }

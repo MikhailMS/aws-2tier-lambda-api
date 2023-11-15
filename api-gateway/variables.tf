@@ -13,17 +13,13 @@ variable "region" {
 }
 
 #=========== lambda's data ========
-variable "ds_bucket" {
-  description = "Lambda data source bucket"
-  type        = string
-}
-variable "ds_key"    {
-  description = "Lambda data source key"
-  type        = string
-}
-variable "ds_region" {
-  description = "Lambda data source region"
-  type        = string
+variable "lambdas_data" {
+  description = "Where to get lambdas data from"
+  type = object({
+    bucket = string,
+    region = string,
+    key    = string
+  })
 }
 
 #=========== lambda's setting =====
