@@ -4,17 +4,17 @@ Attempt to build 2 Tier application that utilises API Gateway
 
 Simple representation of the thing that gets built with this Terraform project:
 ```
-                   -------------------------------------------------------------
-                   |                          MAIN VPC                         |
-                   |                                                           |
-                   |                                        <-->   Auth Lambda |
-              -----------                                   |                  |
-Client --->   | Route 53 | -> | --> Web GUI --> API Gateway  -->   Lambda 1    |
-              ------------                                  |                  |
-                   |                                        -->    Lambda 2    |
-                   |                                                           |
-                   |                                                           |
-                   -------------------------------------------------------------
+                   ------------------------------------|--------------------------------
+                   |                MAIN VPC           |            Public space       |
+                   |                                   |                               |
+                   |                                   |            <-->  Auth Lambda  |
+              -----------                       ---------------     |                  |
+Client --->   | Route 53 |   --> Web GUI -->    | API Gateway | -->  -->  Lambda 1     |
+              ------------                      ---------------     |                  |
+                   |                                   |             -->  Lambda 2     |
+                   |                                   |                               |
+                   |                                   |                               |
+                   ------------------------------------|--------------------------------
 ```
 
 Auth(authentication) Lambda is required so we can delegate authentication to API Gateway (albeit there are other ways to do this) instead of doing it in Lambda 1/2
