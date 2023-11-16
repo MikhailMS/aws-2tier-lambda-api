@@ -1,8 +1,14 @@
 # AWS 2 Tier application with API Gateway
 
-Attempt to build 2 Tier application that utilises API Gateway
+This project is part of one big project where I research how to build infrastructure in AWS for 2-tier application (and application as well, of course) :
+1. Terraform (this project) contains all the terraform code to deploy required infra & application code
+2. [Simple Web GUI](https://github.com/MikhailMS/aws-simple-web-gui) contains code for simple Web GUI to bridge the gap between user and Lambda functions
+3. [Lambda functions](https://github.com/MikhailMS/aws-lambda-functions) contain code for 3 Lambda functions that replicate simple backend functions
+    1. `return_ip`         - returns IP address of the Lambda function
+    2. `fetch_go_versions` - returns JSON with recent 5 Go versions
+    3. `custom_auth`       - custom Lambda authorizer (only supports payload format `version 1.0`) that controls access to above 2 functions when calling via API Gateway
 
-Simple representation of the thing that gets built with this Terraform project:
+Simple representation of the thing that gets built with this Terraform project (application is also getting deployed as part of this Terraform project):
 ```
                    ------------------------------------|--------------------------------
                    |                MAIN VPC           |            Public space       |
@@ -34,10 +40,11 @@ Auth(authentication) Lambda is required so we can delegate authentication to API
         3. API Gateway - sets up API Gateway: linkage between Web-Tier and Lambdas + authentication;      set in `api-gateway/backend-config.tfvars & api-gateway/data.tf >> data >> config >> bucket & region (same as what set in network)`
         4. Web Tier    - sets up servers hosted in public subnets; accessible via Internet;               set in `web-tier/backend-config.tfvars    & web-tier/data.tf    >> data >> config >> bucket & region (same as what set in network & api-gateway)`
         5. Route53     - links custom DNS (with HTTPS cert) to Web Tier LB;                               set in `route53/backend-config.tfvars     & route53/data.tf     >> data >> config >> bucket & region (same as what set in web-tier)`
-    2. `terraform.tfvars` file in each of the module: `app-tier`, `network`, `route53`, `web-tier` to specify:
+    2. `terraform.tfvars` file in each of the module: `api-gateway`, `lambdas`, `network`, `route53`, `web-tier` to specify:
         1. TLS certificates (specifically ARN of those) - these would be used to ensure HTTPS connectivity is properly handled
         2. SSH Keys - so you would be able to log onto Web Tier servers in case you need to debug/play around with those
-    3. `backend-config.tfvars` file in each of the module: `app-tier`, `network`, `route53`, `web-tier` to specify:
+        3. There are other required variables, please refer to `variables.tf` in each module
+    3. `backend-config.tfvars` file in each of the module: `api-gateway`, `lambdas`, `network`, `route53`, `web-tier` to specify:
         1. `bucket` - backend bucket
         2. `key`    - backend key
         3. `region` - backend region
