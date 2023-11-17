@@ -103,53 +103,53 @@ resource "aws_route_table_association" "subnet_routes" {
 }
 
 
-# Create NAT
-resource "aws_eip" "nat_eip" {
-  vpc = true
+# # Create NAT
+# resource "aws_eip" "nat_eip" {
+#   vpc = true
 
-  tags = {
-    Name = "NAT Gateway EIP"
-  }
-}
+#   tags = {
+#     Name = "NAT Gateway EIP"
+#   }
+# }
 
-resource "aws_nat_gateway" "nat_gateway" {
-  allocation_id = aws_eip.nat_eip.id
-  subnet_id     = [for key, sub in aws_subnet.subnets: sub.id if length(regexall("^subnet*", key)) > 0][0]
+# resource "aws_nat_gateway" "nat_gateway" {
+#   allocation_id = aws_eip.nat_eip.id
+#   subnet_id     = [for key, sub in aws_subnet.subnets: sub.id if length(regexall("^subnet*", key)) > 0][0]
 
-  tags = {
-    Name = "NAT Gateway"
-  }
+#   tags = {
+#     Name = "NAT Gateway"
+#   }
 
-  depends_on = [aws_internet_gateway.int_gateway]
-}
+#   depends_on = [aws_internet_gateway.int_gateway]
+# }
 
 
-# Create and resolve Private Route Table
-resource "aws_route_table" "private_route_table" {
-  vpc_id = aws_vpc.main_network.id
+# # Create and resolve Private Route Table
+# resource "aws_route_table" "private_route_table" {
+#   vpc_id = aws_vpc.main_network.id
 
-  # Route for public access
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_nat_gateway.nat_gateway.id
-  }
+#   # Route for public access
+#   route {
+#     cidr_block = "0.0.0.0/0"
+#     gateway_id = aws_nat_gateway.nat_gateway.id
+#   }
 
-  tags = {
-    Name = "Private Route Table"
-  }
+#   tags = {
+#     Name = "Private Route Table"
+#   }
 
-  depends_on = [aws_vpc.main_network, aws_nat_gateway.nat_gateway]
-}
+#   depends_on = [aws_vpc.main_network, aws_nat_gateway.nat_gateway]
+# }
 
-resource "aws_route_table_association" "private_subnet_routes" {
-  for_each = {
-    for key, sub in aws_subnet.subnets : key => sub
-    if length(regexall("^private*", key)) > 0
-  }
+# resource "aws_route_table_association" "private_subnet_routes" {
+#   for_each = {
+#     for key, sub in aws_subnet.subnets : key => sub
+#     if length(regexall("^private*", key)) > 0
+#   }
 
-  subnet_id      = each.value.id
-  route_table_id = aws_route_table.private_route_table.id
+#   subnet_id      = each.value.id
+#   route_table_id = aws_route_table.private_route_table.id
 
-  depends_on = [aws_route_table.private_route_table]
-}
+#   depends_on = [aws_route_table.private_route_table]
+# }
 #####
