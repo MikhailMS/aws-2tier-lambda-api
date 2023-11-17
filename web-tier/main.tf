@@ -197,7 +197,10 @@ resource "aws_launch_template" "webserver_instance" {
   name_prefix   = var.launch_template_settings.name_prefix
   image_id      = var.launch_template_settings.image_id
   instance_type = var.launch_template_settings.instance_type
-  iam_instance_profile = "${aws_iam_instance_profile.webserver_profile.name}"
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.webserver_profile.name
+  }
   
   key_name      = var.launch_template_settings.key_name
 
