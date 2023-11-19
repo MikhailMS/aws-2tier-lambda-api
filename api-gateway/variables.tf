@@ -29,9 +29,18 @@ variable "api_gateway" {
     description   = string,
     name          = string,
     protocol_type = string,
-    version       = number
+    version       = number,
+
+    authorizer = object({
+      type                   = string,
+      identity_sources       = list(string),
+      payload_format_version = string
+    })
+
+    stage = string
   })
 }
+
 
 #=========== lambda's auth ========
 variable "functions_auth" {
