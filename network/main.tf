@@ -39,7 +39,8 @@ resource "aws_vpc" "main_network" {
 }
 
 
-# Create all required Subnets
+##
+# Create all required subnets
 resource "aws_subnet" "subnets" {
   for_each = {
     for k, v in local.subnets_array : "${v.name}" => v
@@ -56,18 +57,26 @@ resource "aws_subnet" "subnets" {
 
   depends_on = [aws_vpc.main_network]
 }
+##
 
 
+##
+# Resolve Public Subnets
+#
 # Create and link Internet Gateway
 resource "aws_internet_gateway" "int_gateway" {
+  count = length([ for key, _ in aws_subnet.subnets : key if length(regexall("^subnet*", key)) > 0 ]) > 0 ? 1 : 0
+
   tags = {
     Name = "Main Internet Gateway"
   }
 }
 
 resource "aws_internet_gateway_attachment" "int_gateway_attach" {
+  count = length([ for key, _ in aws_subnet.subnets : key if length(regexall("^subnet*", key)) > 0 ]) > 0 ? 1 : 0
+
   vpc_id              = aws_vpc.main_network.id
-  internet_gateway_id = aws_internet_gateway.int_gateway.id
+  internet_gateway_id = aws_internet_gateway.int_gateway[0].id
 
   depends_on = [aws_vpc.main_network, aws_internet_gateway.int_gateway]
 }
@@ -75,12 +84,14 @@ resource "aws_internet_gateway_attachment" "int_gateway_attach" {
 
 # Create and resolve Public Route Table
 resource "aws_route_table" "route_table" {
+  count = length([ for key, _ in aws_subnet.subnets : key if length(regexall("^subnet*", key)) > 0 ]) > 0 ? 1 : 0
+
   vpc_id = aws_vpc.main_network.id
 
   # Route for public access
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.int_gateway.id
+    gateway_id = aws_internet_gateway.int_gateway[0].id
   }
 
   tags = {
@@ -97,59 +108,70 @@ resource "aws_route_table_association" "subnet_routes" {
   }
 
   subnet_id      = each.value.id
-  route_table_id = aws_route_table.route_table.id
+  route_table_id = aws_route_table.route_table[0].id
 
   depends_on = [aws_route_table.route_table]
 }
+##
 
 
-# # Create NAT
-# resource "aws_eip" "nat_eip" {
-#   vpc = true
+##
+# Resolve Private Subnets
+#
+# Create NAT
+resource "aws_eip" "nat_eip" {
+  count = length([ for key, _ in aws_subnet.subnets : key if length(regexall("^private*", key)) > 0 ]) > 0 ? 1 : 0
 
-#   tags = {
-#     Name = "NAT Gateway EIP"
-#   }
-# }
+  domain = "vpc"
 
-# resource "aws_nat_gateway" "nat_gateway" {
-#   allocation_id = aws_eip.nat_eip.id
-#   subnet_id     = [for key, sub in aws_subnet.subnets: sub.id if length(regexall("^subnet*", key)) > 0][0]
+  tags = {
+    Name = "NAT Gateway EIP"
+  }
+}
 
-#   tags = {
-#     Name = "NAT Gateway"
-#   }
+resource "aws_nat_gateway" "nat_gateway" {
+  count = length([ for key, _ in aws_subnet.subnets : key if length(regexall("^private*", key)) > 0 ]) > 0 ? 1 : 0
 
-#   depends_on = [aws_internet_gateway.int_gateway]
-# }
+  allocation_id = aws_eip.nat_eip[0].id
+  subnet_id     = [for key, sub in aws_subnet.subnets: sub.id if length(regexall("^subnet*", key)) > 0][0]
+
+  tags = {
+    Name = "NAT Gateway"
+  }
+
+  depends_on = [aws_internet_gateway.int_gateway]
+}
 
 
-# # Create and resolve Private Route Table
-# resource "aws_route_table" "private_route_table" {
-#   vpc_id = aws_vpc.main_network.id
+# Create and resolve Private Route Table
+resource "aws_route_table" "private_route_table" {
+  count = length([ for key, _ in aws_subnet.subnets : key if length(regexall("^private*", key)) > 0 ]) > 0 ? 1 : 0
 
-#   # Route for public access
-#   route {
-#     cidr_block = "0.0.0.0/0"
-#     gateway_id = aws_nat_gateway.nat_gateway.id
-#   }
+  vpc_id = aws_vpc.main_network.id
 
-#   tags = {
-#     Name = "Private Route Table"
-#   }
+  # Route for public access
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.nat_gateway[0].id
+  }
 
-#   depends_on = [aws_vpc.main_network, aws_nat_gateway.nat_gateway]
-# }
+  tags = {
+    Name = "Private Route Table"
+  }
 
-# resource "aws_route_table_association" "private_subnet_routes" {
-#   for_each = {
-#     for key, sub in aws_subnet.subnets : key => sub
-#     if length(regexall("^private*", key)) > 0
-#   }
+  depends_on = [aws_vpc.main_network, aws_nat_gateway.nat_gateway]
+}
 
-#   subnet_id      = each.value.id
-#   route_table_id = aws_route_table.private_route_table.id
+resource "aws_route_table_association" "private_subnet_routes" {
+  for_each = {
+    for key, sub in aws_subnet.subnets : key => sub
+    if length(regexall("^private*", key)) > 0
+  }
 
-#   depends_on = [aws_route_table.private_route_table]
-# }
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private_route_table[0].id
+
+  depends_on = [aws_route_table.private_route_table]
+}
+##
 #####
